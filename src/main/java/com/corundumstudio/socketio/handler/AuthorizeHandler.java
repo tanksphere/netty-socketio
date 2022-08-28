@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -69,7 +70,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
 
     private static final Logger log = LoggerFactory.getLogger(AuthorizeHandler.class);
 
-    private final CancelableScheduler disconnectScheduler;
+    private final CancelableScheduler scheduler;
 
     private final String connectPath;
     private final Configuration configuration;
@@ -84,7 +85,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
         super();
         this.connectPath = connectPath;
         this.configuration = configuration;
-        this.disconnectScheduler = scheduler;
+        this.scheduler = scheduler;
         this.namespacesHub = namespacesHub;
         this.storeFactory = storeFactory;
         this.disconnectable = disconnectable;
@@ -95,7 +96,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
     @Override
     public void channelActive(final ChannelHandlerContext ctx) throws Exception {
         SchedulerKey key = new SchedulerKey(Type.PING_TIMEOUT, ctx.channel());
-        disconnectScheduler.schedule(key, new Runnable() {
+        scheduler.schedule(key, new Runnable() {
             @Override
             public void run() {
                 ctx.channel().close();
@@ -108,7 +109,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         SchedulerKey key = new SchedulerKey(Type.PING_TIMEOUT, ctx.channel());
-        disconnectScheduler.cancel(key);
+        scheduler.cancel(key);
 
         if (msg instanceof FullHttpRequest) {
             FullHttpRequest req = (FullHttpRequest) msg;
@@ -181,7 +182,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
 
         Transport transport = null;
         try {
-            transport = Transport.valueOf(transportValue.get(0));
+            transport = Transport.valueOf(transportValue.get(0).toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             log.error("Unknown transport for request {}", req.uri());
             writeAndFlushTransportError(channel, origin);
@@ -193,7 +194,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
             return false;
         }
 
-        ClientHead client = new ClientHead(sessionId, ackManager, disconnectable, storeFactory, data, clientsBox, transport, disconnectScheduler, configuration);
+        ClientHead client = new ClientHead(sessionId, ackManager, disconnectable, storeFactory, data, clientsBox, transport, scheduler, configuration);
         channel.attr(ClientHead.CLIENT).set(client);
         clientsBox.addClient(client);
 
@@ -208,6 +209,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
         packet.setData(authPacket);
         client.send(packet);
 
+        client.schedulePing();
         client.schedulePingTimeout();
         log.debug("Handshake authorized for sessionId: {}, query params: {} headers: {}", sessionId, params, headers);
         return true;
@@ -256,7 +258,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
 
     public void connect(UUID sessionId) {
         SchedulerKey key = new SchedulerKey(Type.PING_TIMEOUT, sessionId);
-        disconnectScheduler.cancel(key);
+        scheduler.cancel(key);
     }
 
     public void connect(ClientHead client) {

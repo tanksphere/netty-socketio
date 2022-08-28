@@ -50,4 +50,8 @@ public abstract class ExceptionListenerAdapter implements ExceptionListener {
         
     }
 
+    @Override
+    public void onPongException(Exception e, SocketIOClient client) {
+
+    }
 }

@@ -59,11 +59,16 @@ public class PacketListener {
 
             if ("probe".equals(packet.getData())) {
                 client.getBaseClient().send(new Packet(PacketType.NOOP), Transport.POLLING);
-            } else {
-                client.getBaseClient().schedulePingTimeout();
             }
             Namespace namespace = namespacesHub.get(packet.getNsp());
             namespace.onPing(client);
+            break;
+        }
+
+        case PONG: {
+            client.getBaseClient().schedulePingTimeout();
+            Namespace namespace = namespacesHub.get(packet.getNsp());
+            namespace.onPong(client);
             break;
         }
 
