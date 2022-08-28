@@ -298,6 +298,19 @@ public class PacketEncoder {
                         if (!packet.getNsp().isEmpty()) {
                             buf.writeBytes(packet.getNsp().getBytes(CharsetUtil.UTF_8));
                         }
+
+                        encBuf = allocateBuffer(allocator);
+                        ByteBufOutputStream out = new ByteBufOutputStream(encBuf);
+                        jsonSupport.writeValue(out, packet.getData());
+
+                        if (!jsonSupport.getArrays().isEmpty()) {
+                            packet.initAttachments(jsonSupport.getArrays().size());
+                            for (byte[] array : jsonSupport.getArrays()) {
+                                packet.addAttachment(Unpooled.wrappedBuffer(array));
+                            }
+//                            packet.setSubType(packet.getSubType() == PacketType.ACK
+//                                    ? PacketType.BINARY_ACK : PacketType.BINARY_EVENT);
+                        }
                     } else {
                         if (!packet.getNsp().isEmpty()) {
                             buf.writeBytes(packet.getNsp().getBytes(CharsetUtil.UTF_8));

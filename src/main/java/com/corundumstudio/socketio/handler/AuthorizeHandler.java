@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import com.corundumstudio.socketio.messages.ConnectAckData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -267,6 +268,7 @@ public class AuthorizeHandler extends ChannelInboundHandlerAdapter implements Di
         if (!client.getNamespaces().contains(ns)) {
             Packet packet = new Packet(PacketType.MESSAGE);
             packet.setSubType(PacketType.CONNECT);
+            packet.setData(new ConnectAckData(client.getSessionId().toString()));
             client.send(packet);
 
             configuration.getStoreFactory().pubSubStore().publish(PubSubType.CONNECT, new ConnectMessage(client.getSessionId()));
